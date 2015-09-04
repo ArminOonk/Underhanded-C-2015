@@ -6,11 +6,12 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <math.h>
+#include <time.h>
 
 // DO NOT MODIFY
 #define BINS 25
 #define LIBRARY_SIZE 3
-double baseline[BINS] = {	
+const double baseline[BINS] = {	
 1.4827, 0.0438, 0.9608, 1.7382, 0.4302, 
 1.6273, 0.1663, 0.3763, 0.2270, 1.1489, 
 2.0243, 2.3595, 0.5100, 1.3216, 0.6361, 
@@ -18,7 +19,7 @@ double baseline[BINS] = {
 0.6474, 0.4256, 1.0486, 0.6607, 2.5088
 };
 
-double plutonium[BINS] = {	
+const double plutonium[BINS] = {	
 1.4827, 0.0438, 0.9608, 1.7382, 0.4302, 
 1.6273, 3.1663, 9.3763, 5.2270, 2.1489, 
 2.0243, 2.3595, 0.5100, 1.3216, 0.6361, 
@@ -26,7 +27,7 @@ double plutonium[BINS] = {
 0.6474, 0.4256, 1.0486, 0.6607, 2.5088
 };
 							
-double uranium[BINS] = {	
+const double uranium[BINS] = {	
 1.4827, 3.0438, 7.9608, 13.738, 5.4302, 
 1.6273, 0.1663, 0.3763, 0.2270, 1.1489, 
 2.0243, 2.3595, 0.5100, 1.3216, 0.6361, 
@@ -42,12 +43,12 @@ struct reference_t
 	double *test;
 };
 
-struct reference_t library[LIBRARY_SIZE] = 
+struct reference_t library[LIBRARY_SIZE];/* = 
 {
-	{"Baseline", BINS, baseline},
-	{"Plutonium", BINS, plutonium},
-	{"Uranium", BINS, uranium},
-};
+	{"Baseline", BINS, (double*)baseline},
+	{"Plutonium", BINS, (double*)plutonium},
+	{"Uranium", BINS, (double*)uranium},
+};*/
 
 double correlation;
 int match( double * test, double * reference, int bins, double threshold )
@@ -76,13 +77,35 @@ int match( double * test, double * reference, int bins, double threshold )
 	double r = cov/sqrt(devTest*devReference);
 	correlation = r*r;
 	
-	//printf("Correlation: %0.2f\r\n", correlation);
-	
 	if(correlation > threshold)
 	{
 		return 1;
 	}
 	return 0;
+}
+
+void addToLibrary(int index, char name[], const double *test, int bins)
+{
+	strcpy(library[index].name, name);
+	int size = bins*sizeof(double);
+	library[index].test = (double*)malloc(size);
+	memcpy(library[index].test, test, size);
+	library[index].bins = bins;
+}
+
+void init()
+{
+	addToLibrary(0, "Baseline", (double*)baseline, BINS);
+	addToLibrary(1, "Plutonium", (double*)plutonium, BINS);
+	addToLibrary(2, "Uranium", (double*)uranium, BINS);
+}
+
+void cleanUp()
+{
+	for(int i=0; i<LIBRARY_SIZE; i++)
+	{
+		free(library[i].test);
+	}
 }
 
 void selfTest()
@@ -91,32 +114,53 @@ void selfTest()
 	{
 		for(int j=0; j<LIBRARY_SIZE; j++)
 		{
+			int expectedRes = (i == j) ? 1 : 0;
 			int res = match(library[i].test, library[j].test, BINS, 0.8);
-			printf("Selftest %s vs %s %s with score %0.2f\r\n", library[i].name, library[j].name, res ? "Match" : "No match", correlation );
+			
+			printf("Selftest %s %s vs %s %s with score %0.2f\r\n", 
+				(expectedRes==res) ? "PASSED" : "FAILED", library[i].name, library[j].name, res ? "Match" : "No match", correlation );
 		}
 	}
-	// Cross reference samples
-	/*printf("Testing: baseline vs baseline %d\r\n", match(baseline, baseline, BINS, 0.8));
-	printf("Testing: plutonium  vs baseline %d\r\n", match(plutonium, baseline, BINS, 0.8));
-	printf("Testing: uranium  vs baseline: %d\r\n", match(uranium, baseline, BINS, 0.8));
-	
-	printf("Testing: baseline vs plutonium %d\r\n", match(baseline, plutonium, BINS, 0.8));
-	printf("Testing: plutonium  vs plutonium %d\r\n", match(plutonium, plutonium, BINS, 0.8));
-	printf("Testing: uranium  vs plutonium: %d\r\n", match(uranium, plutonium, BINS, 0.8));
-	
-	printf("Testing: baseline vs uranium %d\r\n", match(baseline, uranium, BINS, 0.8));
-	printf("Testing: plutonium  vs uranium %d\r\n", match(plutonium, uranium, BINS, 0.8));
-	printf("Testing: uranium  vs uranium: %d\r\n", match(uranium, uranium, BINS, 0.8));*/
 }
+
+double randomDouble(double min, double max)
+{
+	double r = (double)rand()/(double)RAND_MAX;
+	return min + (max-min)*r;
+}
+
 int main(int argc, char **argv)
 {
-	selfTest();
+	srand(time(NULL));
 	
+	init();
+	//selfTest();
+	
+	double ranTest[BINS];
+	double amplitude = 2.0;
+	
+	for(int x=0; x<10; x++)
+	{
+		for(int i=0; i<BINS; i++)
+		{
+			ranTest[i] = plutonium[i] + randomDouble(0.0, amplitude);
+		}
+		
+		int expectedRes = 1;
+		int res = match(ranTest, (double*)plutonium, BINS, 0.8);
+				
+		printf("Selftest %s %s vs %s %s with score %0.2f\r\n", 
+				(expectedRes==res) ? "PASSED" : "FAILED", "ranTest", "plutonium", res ? "Match" : "No match", correlation );
+	}
+	
+	/*
 	double TwoTimesPu[BINS];
 	for(int i=0; i<BINS; i++)
 	{
 		TwoTimesPu[i] = 2.0*plutonium[i];
 	}
 	
-	printf("Testing: plutonium  vs TwoTimesPu %d\r\n", match(plutonium, TwoTimesPu, BINS, 0.8));
+	printf("Testing: plutonium  vs TwoTimesPu %d\r\n", match((double*)plutonium, TwoTimesPu, BINS, 0.8));
+	*/
+	cleanUp();
 }
