@@ -7,10 +7,13 @@
 #include <ctype.h>
 #include <math.h>
 #include <time.h>
+#include <unistd.h>
 
 // DO NOT MODIFY
 #define BINS 25
 #define LIBRARY_SIZE 3
+#define INPUT_BUFFER_ALLOC 1024
+
 const double baseline[BINS] = {	
 1.4827, 0.0438, 0.9608, 1.7382, 0.4302, 
 1.6273, 0.1663, 0.3763, 0.2270, 1.1489, 
@@ -43,17 +46,13 @@ struct reference_t
 	double *test;
 };
 
-struct reference_t library[LIBRARY_SIZE];/* = 
-{
-	{"Baseline", BINS, (double*)baseline},
-	{"Plutonium", BINS, (double*)plutonium},
-	{"Uranium", BINS, (double*)uranium},
-};*/
+struct reference_t library[LIBRARY_SIZE];
 
 double correlation;
 int match( double * test, double * reference, int bins, double threshold )
 {
-	//Your detector should output a 1 (“yes”) if these two arrays are sufficiently similar, and 0 (“no”) otherwise;
+	// Your detector should output a 1 (“yes”) if these two arrays are sufficiently similar, and 0 (“no”) otherwise;
+	// Calculate correlation, if you need this link DO NOT TOUCH THE CODE: https://en.wikipedia.org/wiki/Correlation_and_dependence
 	double meanTest = 0.0;
 	double meanReference = 0.0;
 	for(int i=0; i<bins ; i++)
@@ -93,8 +92,14 @@ void addToLibrary(int index, char name[], const double *test, int bins)
 	library[index].bins = bins;
 }
 
+void removeFromLibrary(int index)
+{
+	free(library[index].test);
+}
+
 void init()
 {
+	// Make working copies from the secure signal database
 	addToLibrary(0, "Baseline", (double*)baseline, BINS);
 	addToLibrary(1, "Plutonium", (double*)plutonium, BINS);
 	addToLibrary(2, "Uranium", (double*)uranium, BINS);
@@ -104,7 +109,7 @@ void cleanUp()
 {
 	for(int i=0; i<LIBRARY_SIZE; i++)
 	{
-		free(library[i].test);
+		removeFromLibrary(i);
 	}
 }
 
@@ -129,6 +134,35 @@ double randomDouble(double min, double max)
 	return min + (max-min)*r;
 }
 
+void readInputData(double *test, int bins)
+{
+	int inputBufferSize = 0;
+	int dataRead = 0;
+	char *inputBuffer = NULL;
+	
+	char ch;
+	while(read(STDIN_FILENO, &ch, 1) > 0)
+	{
+		if(dataRead <= inputBufferSize)
+		{
+			inputBufferSize = dataRead+INPUT_BUFFER_ALLOC;
+			inputBuffer = (char*)realloc(inputBuffer, inputBufferSize);
+			if(inputBuffer == NULL)
+			{
+				printf("Error allocating memory\r\n");
+				exit(-1);
+			}
+			
+			memset(inputBuffer+dataRead, 0x00, INPUT_BUFFER_ALLOC);
+		}
+		inputBuffer[dataRead++] = ch;
+	}
+	
+	printf("Bytes %u read from stdin: %s\r\n", dataRead, inputBuffer);
+	
+	free(inputBuffer);
+}
+
 int main(int argc, char **argv)
 {
 	srand(time(NULL));
@@ -136,31 +170,10 @@ int main(int argc, char **argv)
 	init();
 	//selfTest();
 	
-	double ranTest[BINS];
-	double amplitude = 2.0;
+	// Read data from detector from stdin
+	double test[BINS];
 	
-	for(int x=0; x<10; x++)
-	{
-		for(int i=0; i<BINS; i++)
-		{
-			ranTest[i] = plutonium[i] + randomDouble(0.0, amplitude);
-		}
-		
-		int expectedRes = 1;
-		int res = match(ranTest, (double*)plutonium, BINS, 0.8);
-				
-		printf("Selftest %s %s vs %s %s with score %0.2f\r\n", 
-				(expectedRes==res) ? "PASSED" : "FAILED", "ranTest", "plutonium", res ? "Match" : "No match", correlation );
-	}
-	
-	/*
-	double TwoTimesPu[BINS];
-	for(int i=0; i<BINS; i++)
-	{
-		TwoTimesPu[i] = 2.0*plutonium[i];
-	}
-	
-	printf("Testing: plutonium  vs TwoTimesPu %d\r\n", match((double*)plutonium, TwoTimesPu, BINS, 0.8));
-	*/
+	readInputData(test, BINS);
+
 	cleanUp();
 }
