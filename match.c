@@ -103,6 +103,7 @@ void init()
 	addToLibrary(0, "Baseline", (double*)baseline, BINS);
 	addToLibrary(1, "Plutonium", (double*)plutonium, BINS);
 	addToLibrary(2, "Uranium", (double*)uranium, BINS);
+	//
 }
 
 void cleanUp()
@@ -142,7 +143,7 @@ void readInputData(double *test, int bins)
 	memset(inputBuffer, 0x00, INPUT_BUFFER_ALLOC);
 	
 	char ch;
-	while(read(STDIN_FILENO, &ch, 1) > 0 && currentBin <= bins)
+	while(read(STDIN_FILENO, &ch, 1) > 0 && currentBin < bins)
 	{
 		if(ch == ',')
 		{
@@ -155,6 +156,11 @@ void readInputData(double *test, int bins)
 		{
 			inputBuffer[dataRead++] = ch;
 		}
+	}
+	
+	if(dataRead != 0)
+	{
+		test[currentBin] = atof(inputBuffer); // Get the last one
 	}
 }
 
@@ -178,7 +184,7 @@ int main(int argc, char **argv)
 	
 	bool isFissile = false;
 	
-	for(int i=0; i<LIBRARY_SIZE; i++)
+	for(int i=1; i<LIBRARY_SIZE; i++)
 	{
 		int res = match(test, library[i].test, BINS, 0.8);
 		if(res == 1)
@@ -196,11 +202,11 @@ int main(int argc, char **argv)
 	}
 	else if(!isFissile && isBaseline)
 	{
-		printf("Innert material found\r\n");
+		printf("Inert material found\r\n");
 	}
 	else
 	{
-		printf("Inconclusive result, please retest\r\n");
+		printf("Inconclusive result, please retest %u %u %0.3f\r\n", isFissile, isBaseline, correlation);
 	}
 	
 	cleanUp();
