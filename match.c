@@ -136,31 +136,26 @@ double randomDouble(double min, double max)
 
 void readInputData(double *test, int bins)
 {
-	int inputBufferSize = 0;
 	int dataRead = 0;
-	char *inputBuffer = NULL;
+	int currentBin = 0;
+	char inputBuffer[INPUT_BUFFER_ALLOC];
+	memset(inputBuffer, 0x00, INPUT_BUFFER_ALLOC);
 	
 	char ch;
-	while(read(STDIN_FILENO, &ch, 1) > 0)
+	while(read(STDIN_FILENO, &ch, 1) > 0 && currentBin <= bins)
 	{
-		if(dataRead <= inputBufferSize)
+		if(ch == ',')
 		{
-			inputBufferSize = dataRead+INPUT_BUFFER_ALLOC;
-			inputBuffer = (char*)realloc(inputBuffer, inputBufferSize);
-			if(inputBuffer == NULL)
-			{
-				printf("Error allocating memory\r\n");
-				exit(-1);
-			}
-			
-			memset(inputBuffer+dataRead, 0x00, INPUT_BUFFER_ALLOC);
+			test[currentBin] = atof(inputBuffer);
+			currentBin++;
+			dataRead = 0;
+			memset(inputBuffer, 0x00, INPUT_BUFFER_ALLOC);
 		}
-		inputBuffer[dataRead++] = ch;
+		else
+		{
+			inputBuffer[dataRead++] = ch;
+		}
 	}
-	
-	printf("Bytes %u read from stdin: %s\r\n", dataRead, inputBuffer);
-	
-	free(inputBuffer);
 }
 
 int main(int argc, char **argv)
@@ -172,8 +167,41 @@ int main(int argc, char **argv)
 	
 	// Read data from detector from stdin
 	double test[BINS];
-	
 	readInputData(test, BINS);
+	
+	printf("Signal: ");
+	for(int i=0; i<BINS; i++)
+	{
+		printf("%0.2f ", test[i]);
+	}
+	printf("\r\n");
+	
+	bool isFissile = false;
+	
+	for(int i=0; i<LIBRARY_SIZE; i++)
+	{
+		int res = match(test, library[i].test, BINS, 0.8);
+		if(res == 1)
+		{
+			isFissile = true;
+		}
+	}
 
+	bool isBaseline = ( match(test, (double*)baseline, BINS, 0.8) == 1);
+	
+	
+	if(isFissile && !isBaseline)
+	{
+		printf("Fissile material detected\r\n");
+	}
+	else if(!isFissile && isBaseline)
+	{
+		printf("Innert material found\r\n");
+	}
+	else
+	{
+		printf("Inconclusive result, please retest\r\n");
+	}
+	
 	cleanUp();
 }
