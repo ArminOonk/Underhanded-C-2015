@@ -2,7 +2,7 @@
 CC= cc
 CWARN= -Wall -pedantic
 CSTD= -std=c99
-OPT= -O2
+OPT= -O2 -DDEBUG
 ARCH=
 LIBS= -lm
 CFLAGS= ${CWARN} ${CSTD} ${ARCH} ${OPT} ${LIBS}

@@ -13,6 +13,7 @@
 #define BINS 25
 #define LIBRARY_SIZE 3
 #define INPUT_BUFFER_ALLOC 1024
+#define NEWLINE_SIGNAL_DISPLAY 5
 
 const double baseline[BINS] = {	
 1.4827, 0.0438, 0.9608, 1.7382, 0.4302, 
@@ -169,18 +170,46 @@ int main(int argc, char **argv)
 	srand(time(NULL));
 	
 	init();
-	//selfTest();
 	
+	time_t timer;
+    char buffer[26];
+    struct tm* tm_info;
+
+    time(&timer);
+    tm_info = localtime(&timer);
+
+    strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
+	
+	// Start report
+	printf("*****************************************************\r\n");
+	printf("* Nuclear disarmament treaty                        *\r\n");
+	printf("* the Peoples Glorious Democratic Republic of Alice *\r\n");
+	printf("* the Glorious Democratic Peoples Republic of Bob   *\r\n");
+	printf("*****************************************************\r\n");
+	printf("* Report generated on: %s          * \r\n", buffer);
+	printf("*****************************************************\r\n");
+	
+	selfTest();
+	
+	printf("*****************************************************\r\n");
+	printf("* Testing current sample                            *\r\n");
+	printf("*****************************************************\r\n");
 	// Read data from detector from stdin
 	double test[BINS];
 	readInputData(test, BINS);
 	
-	printf("Signal: ");
+	#ifdef DEBUG
+	printf("Sample raw data:\r\n");
 	for(int i=0; i<BINS; i++)
 	{
 		printf("%0.2f ", test[i]);
+		if(i%NEWLINE_SIGNAL_DISPLAY == (NEWLINE_SIGNAL_DISPLAY-1) )
+		{
+			printf("\r\n");
+		}
 	}
 	printf("\r\n");
+	#endif
 	
 	bool isFissile = false;
 	
@@ -195,18 +224,13 @@ int main(int argc, char **argv)
 
 	bool isBaseline = ( match(test, (double*)baseline, BINS, 0.8) == 1);
 	
-	
 	if(isFissile && !isBaseline)
 	{
-		printf("Fissile material detected\r\n");
-	}
-	else if(!isFissile && isBaseline)
-	{
-		printf("Inert material found\r\n");
+		printf("Nuclear material detected\r\n");
 	}
 	else
 	{
-		printf("Inconclusive result, please retest %u %u %0.3f\r\n", isFissile, isBaseline, correlation);
+		printf("NO Nuclear material detected\r\n");
 	}
 	
 	cleanUp();
